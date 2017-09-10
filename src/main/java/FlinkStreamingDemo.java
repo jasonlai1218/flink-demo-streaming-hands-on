@@ -1,6 +1,10 @@
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+
+import java.util.Properties;
 
 /**
  * Created by jasonlai on 2017/9/10.
@@ -12,14 +16,16 @@ public class FlinkStreamingDemo {
         // flink會自己去判斷自己在什麼環境，目前在ide中
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        //data source
-        DataStream<String> elements = env.fromElements("one", "two" , "three");
+        //data source : kafka
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", "localhost:9092");
+        properties.setProperty("zookeeper.connect", "localhost:2181");
+        properties.setProperty("group.id", "jason-lai-19891218");
 
-        //data operator
-        DataStream<Integer> digits = elements.map(new TransformDigits());
+        DataStream<String> lines = env.addSource(new FlinkKafkaConsumer09<String>("random_text_lines", new SimpleStringSchema(), properties));
 
         //data sink
-        digits.print();
+        lines.print();
 
         //如果今天sink是到別的地方database之類的就需要用到這行，用print()其實這行可以註解
         env.execute("Flink Streaming Demo");
