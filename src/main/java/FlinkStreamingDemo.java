@@ -1,8 +1,10 @@
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.Collector;
@@ -28,10 +30,13 @@ public class FlinkStreamingDemo {
 
         DataStream<String> lines = env.addSource(new FlinkKafkaConsumer09<String>("random_text_lines", new SimpleStringSchema(), properties));
 
-        DataStream<String> words = lines.flatMap(new SplitLines());
+        DataStream<Tuple2<String, Integer>> words = lines.flatMap(new SplitLines());
+        DataStream<Tuple2<String, Integer>> count = words.keyBy(0).timeWindow(Time.seconds(10)).sum(1);
+        //sliding windows
+        //DataStream<Tuple2<String, Integer>> count = words.keyBy(0).timeWindow(Time.seconds(10), Time.seconds(1)).sum(1);
 
         //data sink
-        words.print();
+        count.print();
 
         //如果今天sink是到別的地方database之類的就需要用到這行，用print()其實這行可以註解
         env.execute("Flink Streaming Demo");
@@ -51,10 +56,10 @@ public class FlinkStreamingDemo {
         }
     }
 
-    public static class SplitLines implements FlatMapFunction<String,String> {
-        public void flatMap(String s, Collector<String> collector) throws Exception {
+    public static class SplitLines implements FlatMapFunction<String, Tuple2<String, Integer>> {
+        public void flatMap(String s, Collector<Tuple2<String, Integer>> collector) throws Exception {
             for (String word : s.split("\\W+"))
-                collector.collect(word);
+                collector.collect(new Tuple2<String, Integer>(word, 1));
         }
     }
 }
